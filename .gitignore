@@ -3,3 +3,10 @@ dist/
 .env.local
 .env*.local
 .DS_Store
+.env
+.env.example
+*.log
+.vite/
+.vscode/
+.idea/
+coverage/
