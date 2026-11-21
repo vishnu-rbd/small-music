@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { App, createQueryClient } from './App';
 
 /**
@@ -43,4 +43,47 @@ describe('app routes', () => {
     // No verifier/state in storage (started elsewhere or expired): refuse the exchange.
     expect(await screen.findByRole('alert')).toHaveTextContent(/expired or was started in another tab/i);
   });
+
+  it('explains an access_denied callback and drops the OAuth query from the URL', async () => {
+    renderAt('/callback?error=access_denied&state=stale');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/cancelled/i);
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(window.location.pathname).toBe('/callback');
+  });
+
+  it('leaves no code in the URL when the callback fails', async () => {
+    renderAt('/callback?code=spent-code&state=not-stored');
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(window.location.href).not.toContain('spent-code');
+  });
+
+  it('exchanges a valid callback code and lands on /stats with a clean URL', async () => {
+    // Pretend sign-in started here: the verifier and state are in sessionStorage.
+    sessionStorage.setItem('spotify.pkce.verifier', 'stored-verifier');
+    sessionStorage.setItem('spotify.pkce.state', 'stored-state');
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        access_token: 'access-token-value',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        refresh_token: 'refresh-token-value',
+        scope: 'user-top-read',
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/callback?code=good-code&state=stored-state');
+
+    await waitFor(() => expect(window.location.pathname).toBe('/stats'));
+    expect(window.location.search).toBe('');
+    expect(JSON.parse(localStorage.getItem('spotify.tokens') ?? '{}').accessToken).toBe('access-token-value');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });

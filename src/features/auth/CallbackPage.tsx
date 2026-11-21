@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { getClientId, handleCallback } from '../../auth/spotifyAuth';
+import { getClientId, getRedirectUri, handleCallback } from '../../auth/spotifyAuth';
 
 type CallbackState = { phase: 'working' } | { phase: 'error'; message: string };
 
 /**
- * Spotify redirects here after sign-in: `/callback?code=…&state=…`.
- * Exchanges the code for tokens (PKCE), then returns to `/stats`.
+ * Spotify redirects here after sign-in: `/callback?code=…&state=…`, or
+ * `/callback?error=access_denied&state=…` when the person declines.
+ *
+ * Exchanges the code for tokens (PKCE), scrubs the OAuth parameters out of the
+ * address bar and history, then lands on `/stats`.
  */
 export function CallbackPage() {
   const clientId = getClientId();
@@ -29,9 +32,10 @@ export function CallbackPage() {
       return;
     }
 
-    handleCallback(clientId, new URL(window.location.href))
+    handleCallback(clientId, new URL(window.location.href), getRedirectUri())
       .then(() => {
         queryClient.clear();
+        // `replace` keeps /callback with its `?code=` out of the history stack.
         navigate('/stats', { replace: true });
       })
       .catch((error: unknown) => {
@@ -39,6 +43,10 @@ export function CallbackPage() {
           phase: 'error',
           message: error instanceof Error ? error.message : 'Sign-in failed.',
         });
+        // Drop the spent/failed code and state from the address bar even when
+        // sign-in fails, so a reload does not replay them and they do not linger
+        // in history or get copied out of the URL.
+        window.history.replaceState(window.history.state, '', '/callback');
       });
   }, [clientId, navigate, queryClient]);
 

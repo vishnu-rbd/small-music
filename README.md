@@ -45,7 +45,7 @@ Requires Node.js 20.19+ or 22.12+.
    # then edit .env.local and set VITE_SPOTIFY_CLIENT_ID
    ```
 
-   `VITE_SPOTIFY_CLIENT_ID` is the only required variable. It is public by design: PKCE uses no client secret, and this repo never ships one. `VITE_SPOTIFY_REDIRECT_URI` is optional and defaults to `http://127.0.0.1:5173/callback`.
+   `VITE_SPOTIFY_CLIENT_ID` is the only required variable. It is public by design: PKCE uses no client secret, and this repo never ships one. `VITE_SPOTIFY_REDIRECT_URI` is optional and normally left empty: the app derives the redirect URI from the browser's own origin instead, so it cannot drift from the URL you actually run (see [Sign-in redirect URI](#sign-in-redirect-uri)).
 
 3. Start the dev server:
 
@@ -53,9 +53,37 @@ Requires Node.js 20.19+ or 22.12+.
    npm run dev
    ```
 
-   Open <http://127.0.0.1:5173/stats> and choose **Sign in with Spotify**. Use `127.0.0.1`, not `localhost`: Spotify does not accept `localhost` redirect URIs.
+   Open <http://127.0.0.1:5173/stats> and choose **Sign in with Spotify**. Use `127.0.0.1`, not `localhost`: they are different URIs to Spotify, and the address you register in step 1 is the one you must browse to.
 
 Scripts: `npm run dev` (dev server), `npm run build` (type-check and production build into `dist/`), `npm test` (Vitest), `npm run preview` (serve the build), `npm run typecheck`.
+
+## Sign-in redirect URI
+
+Sign-in uses Spotify's Authorization Code flow with PKCE, entirely in the browser. Spotify only sends the browser back to a URI you registered on the app, and it compares that URI **character for character**.
+
+The app builds the URI from its own origin: `window.location.origin + '/callback'` (unless you set `VITE_SPOTIFY_REDIRECT_URI`). That one value is sent to Spotify as `redirect_uri` when sign-in starts, and again, unchanged, on the token exchange. Deriving it this way means dev and a deployed URL cannot drift apart.
+
+Register these exactly under **Spotify Dashboard → your app → Settings → Redirect URIs**:
+
+| Where you run it | Exact value to register |
+| --- | --- |
+| Local dev (`npm run dev`) | `http://127.0.0.1:5173/callback` |
+| A deployed site | `https://your-site.example/callback` |
+
+Rules that make Spotify reject the request:
+
+- **No trailing slash.** `/callback`, never `/callback/`.
+- **`127.0.0.1`, not `localhost`.** They are different URIs; add both only if you register both.
+- **Same port.** `npm run dev` uses 5173 with `strictPort`, so the port cannot silently change.
+- **Same scheme.** `http` locally, `https` when deployed.
+
+Nothing is hard-coded to a host: if you start the dev server and open a different address, the app sends that address's `/callback`. That is why a mismatch shows up as Spotify refusing the request, or as "sign-in session expired" when the callback lands on a different origin than the tab that started it.
+
+The flow, and what the app checks:
+
+1. **Authorize.** `GET https://accounts.spotify.com/authorize` with `response_type=code`, `client_id`, `redirect_uri`, `scope=user-top-read`, `state` (random) and `code_challenge_method=S256` plus `code_challenge` (SHA-256 of a random verifier). The verifier and state are kept in `sessionStorage`, which is scoped to the tab and not shared with the long-lived token in `localStorage`.
+2. **Callback.** Spotify returns to `/callback?code=…&state=…`, or `?error=…` if you decline. The app checks `state` against the stored value, then POSTs `grant_type=authorization_code`, `code`, `redirect_uri` and `code_verifier` to `https://accounts.spotify.com/api/token` as `application/x-www-form-urlencoded`. No client secret is involved.
+3. **Landing.** On success the tokens are stored and you land on `/stats`. The `code` and `state` are removed from the address bar, on failure too, so they do not stay in history.
 
 ## License
 
