@@ -33,3 +33,4 @@ Vite, React, TypeScript, React Router, TanStack Query, Zustand, Recharts, Tailwi
 ## License
 
 MIT, to be added with the first code commit.
+Thanks for visiting.
