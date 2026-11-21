@@ -26,6 +26,15 @@ A web app that plays your Spotify music in the browser and shows stats about you
 - A Spotify account. **Playing music inside the browser needs Spotify Premium.** Free accounts can still use the library and stats pages.
 - A Spotify Developer app (free) to get a Client ID. See [docs/SETUP.md](docs/SETUP.md).
 
+## Running locally
+
+1. Clone the repository.
+2. Run `npm install` to install dependencies.
+3. Run `npm run dev` to start the development server.
+4. Open your browser to the local URL shown in the terminal.
+
+For detailed setup instructions including Spotify app registration, see [docs/SETUP.md](docs/SETUP.md).
+
 ## Planned stack
 
 Vite, React, TypeScript, React Router, TanStack Query, Zustand, Recharts, Tailwind CSS, IndexedDB (via Dexie), Vitest, and Playwright. There is no backend: the app signs in with Spotify's PKCE flow straight from the browser. Reasons are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
