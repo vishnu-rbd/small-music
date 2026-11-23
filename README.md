@@ -30,6 +30,10 @@ A web app that plays your Spotify music in the browser and shows stats about you
 
 Vite, React, TypeScript, React Router, TanStack Query, Zustand, Recharts, Tailwind CSS, IndexedDB (via Dexie), Vitest, and Playwright. There is no backend: the app signs in with Spotify's PKCE flow straight from the browser. Reasons are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Contributing
+
+Issues and pull requests are welcome. If you find a bug or have an idea, open an issue first so we can talk it through; for changes, fork the repo, make your change on a branch, and open a pull request describing what you did and why. Please keep each pull request focused on one thing and match the style of the surrounding docs and code.
+
 ## License
 
 MIT, to be added with the first code commit.
